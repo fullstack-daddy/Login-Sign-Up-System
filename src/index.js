@@ -13,7 +13,7 @@ app.use(express.urlencoded({ extended: false }));
 app.set('view engine', 'ejs');
 
 // Serve static files from the "public" directory
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static('public'));
 
 app.get('/', (req, res) => {
     res.render("login");
@@ -36,9 +36,37 @@ app.post("/signup", async (req, res) => {
     if (existingUser) {
         res.send("User already exists, Please choose another username");
     } else {
+        // Hash the password using bcrypt
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(data.password, saltRounds);
+
+        data.password = hashedPassword; // Replace the hashed password with the original password
+
         const userdata = await collection.insertMany(data);
         console.log(userdata);
         res.send("User registered successfully!");
+    }
+});
+
+// Login user
+app.post('/login', async (req, res) => {
+    try {
+        const user = await collection.findOne({ name: req.body.username });
+
+        if (!user) {
+            res.send("Username not found");
+        } else {
+            // Compare the hashed password from the database with the plain text
+            const isPasswordMatch = await bcrypt.compare(req.body.password, user.password);
+
+            if (isPasswordMatch) {
+                res.render("home");
+            } else {
+                res.send("Wrong password");
+            }
+        }
+    } catch (error) {
+        res.send("Wrong details");
     }
 });
 
